@@ -661,13 +661,17 @@ const SECRET_KEY = process.env.JWT_SECRET || 'defaultsecretkey'; // Replace with
 app.post('/api/login', async (req, res) => {
   try {
     const { email, password, rememberme } = req.body;
+    
 
     // Check if the user exists
     const user = await User.findOne({ email });
+    
     if (!user) {
       return res.json({ status: 404, message: 'User does not exist' });
     }
-
+    if (user.frozen) {
+      return res.json({ status: 403, message: 'Account Has been frozen due to violation of terms and conditions' });
+    }
     // Verify password
     // const isPasswordValid = await bcrypt.compare(password, user.password);
     if (password != user.password) {
@@ -862,25 +866,14 @@ app.post('/api/freezeAccount', async (req, res) => {
         { email: req.body.email },
         { $set: { frozen: true} }
     )
-    return res.json({status:'200'})
+    return res.json({status:200})
   }
   catch (error) {
     return res.json({ status: 500, message: error })
   }
 })
 
-app.post('/api/unfreezeAccount', async (req, res) => {
-  try {
-    await User.updateOne(
-        { email: req.body.email },
-        { $set: { frozen: false} }
-    )
-    return res.json({status:'200'})
-  }
-  catch (error) {
-    return res.json({ status: 500, message: error })
-  }
-})
+
 
 
 app.post('/api/getWithdrawInfo', async (req, res) => {
