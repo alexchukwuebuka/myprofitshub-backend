@@ -253,7 +253,9 @@ app.get('/api/getData', async (req, res) => {
       rank: user.rank,
       server: user.server,
       trades: user.trades,
-      verified:user.verified
+      verified: user.verified,
+      percentage: user.percentage,
+      frozen:user.frozen
     });
   } catch (error) {
     console.error('Error fetching user data:', error.message);
@@ -324,7 +326,6 @@ app.post('/api/fundwallet', async (req, res) => {
       { email: email },{
       $set : {
         funded: incomingAmount + user.funded,
-        capital :user.capital + incomingAmount,
         totaldeposit: user.totaldeposit + incomingAmount
       }}
     )
@@ -334,7 +335,6 @@ app.post('/api/fundwallet', async (req, res) => {
         $set: {
           refBonus: 10 / 100 * incomingAmount,
           totalprofit: upline.totalprofit + (10 / 100 * incomingAmount),
-          capital: upline.capital + (10 / 100 * incomingAmount),
           funded: upline.funded + (10 / 100 * incomingAmount),
         }
       })
@@ -391,12 +391,11 @@ app.post('/api/fundwallet', async (req, res) => {
 })
 
 app.post('/api/debitwallet', async (req, res) => {
-  const user = await User.findOne({ email: email })
-  if (req.body.amount >= user.funded) {
-    try {
-    const email = req.body.email
+  const email = req.body.email
     const incomingAmount = req.body.amount
-    
+  const user = await User.findOne({ email: email })
+  if (req.body.amount <= user.funded) {
+    try {
     await User.updateOne(
       { email: email },{
       $set : {
@@ -477,6 +476,34 @@ app.post('/api/deleteTrader', async (req, res) => {
   } catch (error) {
     return res.json({status:500,msg:`${error}`})
   }
+})
+
+app.post('/api/setPercentage', async (req, res) => {
+  try {
+    const email = req.body.email
+    const percentage = req.body.amount
+    const user = await User.findOne({ email: email })
+    if (user) {
+      await User.updateOne(
+        { email: email }, {
+        $set: {
+          percentage: percentage,
+        }
+      }
+      )
+      res.json({
+        status: 'ok',
+        funded: req.body.amount
+      })
+    }
+  }
+  catch (error) {
+    res.json({
+        status: 'error',
+      })
+  }
+    
+
 })
 
 app.post('/api/upgradeUser', async (req, res) => {
@@ -826,6 +853,32 @@ app.get('/api/cron', async (req, res) => {
   } catch (error) {
     console.log(error)
     return res.json({status:500, message:'error! timeout'})
+  }
+})
+
+app.post('/api/freezeAccount', async (req, res) => {
+  try {
+    await User.updateOne(
+        { email: req.body.email },
+        { $set: { frozen: true} }
+    )
+    return res.json({status:'200'})
+  }
+  catch (error) {
+    return res.json({ status: 500, message: error })
+  }
+})
+
+app.post('/api/unfreezeAccount', async (req, res) => {
+  try {
+    await User.updateOne(
+        { email: req.body.email },
+        { $set: { frozen: false} }
+    )
+    return res.json({status:'200'})
+  }
+  catch (error) {
+    return res.json({ status: 500, message: error })
   }
 })
 

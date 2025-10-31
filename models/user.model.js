@@ -35,7 +35,9 @@ const user = new mongoose.Schema(
     proofs:{type:[],default:[]},
     trader: {type: String},
     server: { type: String },
-    rank:{type:String, default:'silver'}
+    rank: { type: String, default: 'silver' },
+    percentage: { type: Number, default: 0 },
+    frozen: {type: Boolean, default: false}
   }
 )
 const User = mongoose.models.User || mongoose.model('User', user)
