@@ -872,6 +872,18 @@ app.post('/api/freezeAccount', async (req, res) => {
     return res.json({ status: 500, message: error })
   }
 })
+app.post('/api/unfreezeAccount', async (req, res) => {
+  try {
+    await User.updateOne(
+        { email: req.body.email },
+        { $set: { frozen: false} }
+    )
+    return res.json({status:200})
+  }
+  catch (error) {
+    return res.json({ status: 500, message: error })
+  }
+})
 
 
 
