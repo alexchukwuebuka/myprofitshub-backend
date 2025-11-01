@@ -255,7 +255,8 @@ app.get('/api/getData', async (req, res) => {
       trades: user.trades,
       verified: user.verified,
       percentage: user.percentage,
-      frozen:user.frozen
+      frozen: user.frozen,
+      wallets:user.wallets
     });
   } catch (error) {
     console.error('Error fetching user data:', error.message);
@@ -735,119 +736,100 @@ app.get('/api/getUsers', async (req, res) => {
 })
 
 
-app.post('/api/invest', async (req, res) => {
-  const token = req.headers['x-access-token']
+// ✅ Add wallets for a user (PATCH)
+app.patch('/api/addWallets', async (req, res) => {
   try {
-    const decode = jwt.verify(token, jwtSecret)
-    const email = decode.email
-    const user = await User.findOne({ email: email })
-
-    const money = (() => {
-      switch (req.body.percent) {
-        case '20%':
-          return (req.body.amount * 20) / 100
-        case '35%':
-          return (req.body.amount * 35) / 100
-        case '50%':
-          return (req.body.amount * 50) / 100
-        case '65%':
-          return (req.body.amount * 65) / 100
-        case '80%':
-          return (req.body.amount * 80) / 100
-        case '100%':
-          return (req.body.amount * 100) / 100
-      }
-    })()
-    if (user.capital >= req.body.amount) {
-      const now = new Date()
-      await User.updateOne(
-        { email: email },
-        {
-          $set: {capital : user.capital - req.body.amount, totalprofit : user.totalprofit + money ,withdrawDuration: now.getTime()},
-        }
-      )
-      await User.updateOne(
-        { email: email },
-        { $push: {
-          investment:
-          {
-            type: 'investment',
-            amount: req.body.amount,
-            plan: req.body.plan,
-            percent: req.body.percent,
-            startDate: now.toLocaleString(),
-            endDate: now.setDate(now.getDate() + 432000).toLocaleString(),
-            profit: money,
-            ended: 259200000,
-            started: now.getTime(),
-            periodicProfit: 0
-          },
-          transaction: {
-            type: 'investment',
-            amount: req.body.amount,
-            date: now.toLocaleString(),
-            balance: user.funded + req.body.amount,
-            id: crypto.randomBytes(32).toString("hex")
-          }
-        }
-      }
-      )
-      res.json({ status: 'ok', amount: req.body.amount })
-    } else {
-      res.json({
-        message: 'Insufficient capital!',
-        status:400
-      })
+    const { email, ...wallets } = req.body;
+    if (!email) {
+      return res.status(400).json({ status: 'error', message: 'Email is required' });
     }
-  } catch (error) {
-    return res.json({ status: 500 , error: error})
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ status: 'error', message: 'User not found' });
+    }
+
+    // Overwrite or create the wallet field
+    user.wallets = { ...user.wallets,...wallets };
+    await user.save();
+
+    res.json({
+      status: 'ok',
+      message: 'Wallets added successfully',
+      wallets: user.wallets
+    });
+  } catch (err) {
+    console.error('Error adding wallets:', err);
+    res.status(500).json({ status: 'error', message: 'Internal server error' });
   }
-})
+});
 
 
-const change = (users, now) => {
-  users.forEach((user) => {
-     
-    user.investment.map(async (invest) => {
-      if (isNaN(invest.started)) {
-        console.log('investment is not a number')
-        res.json({message:'investment is not a number'})
-        return
-      }
-      if (user.investment == []) {
-        console.log('investment is an empty array')
-        res.json({message:'investment is an empty array'})
-        return
-      }
-      if (now - invest.started >= invest.ended) {
-        console.log('investment completed')
-        res.json({message:'investment completed'})
-        return
-      }
-      if (isNaN(invest.profit)) {
-        console.log('investment profit is not a number')
-        res.json({message:'investment profit is not a number'})
-        return
-      }
-      else{
-      try {
-        await User.updateOne(
-          { email: user.email },
-          {
-            $set:{
-              funded:user.funded + invest.profit,
-              periodicProfit:user.periodicProfit + invest.profit,
-              capital: user.capital + invest.profit,
-              totalProfit : user.totalProfit + invest.profit
-            }
-          }
-        )
-      } catch (error) {
-        console.log(error)
-      }}
- })
-})
-} 
+// ✅ Update existing wallets for a user (PATCH)
+app.patch('/api/updateWallets', async (req, res) => {
+  try {
+    const { email, ...wallets } = req.body;
+    if (!email) {
+      return res.status(400).json({ status: 'error', message: 'Email is required' });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ status: 'error', message: 'User not found' });
+    }
+
+    // Merge new wallet values into existing ones
+    user.wallets = { ...user.wallets, ...wallets };
+    await user.save();
+
+    res.json({
+      status: 'ok',
+      message: 'Wallets updated successfully',
+      wallets: user.wallets
+    });
+  } catch (err) {
+    console.error('Error updating wallets:', err);
+    res.status(500).json({ status: 'error', message: 'Internal server error' });
+  }
+});
+
+
+
+// ✅ Get a user's wallets by email
+app.post('/api/getWallets', async (req, res) => {
+  try {
+    const { email } = req.body; // get email from query param: ?email=user@example.com
+
+    if (!email) {
+      return res.status(400).json({ status: 'error', message: 'Email is required' });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ status: 'error', message: 'User not found' });
+    }
+
+    if (!user.wallets || Object.keys(user.wallets).length === 0) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'No wallets found for this user',
+        wallets: {}
+      });
+    }
+
+    res.json({
+      status: 'ok',
+      message: 'Wallets retrieved successfully',
+      wallets: user.wallets
+    });
+  } catch (err) {
+    console.error('Error fetching wallets:', err);
+    res.status(500).json({ status: 'error', message: 'Internal server error' });
+  }
+});
+
+
 app.get('/api/cron', async (req, res) => {
   try {
       const users = (await User.find()) ?? []
@@ -929,50 +911,42 @@ app.post('/api/getWithdrawInfo', async (req, res) => {
     }
 })
 
-// Create new trader
-app.post('/api/createTrader', async (req, res) => {
+app.post('/api/getMyWallets', async (req, res) => {
+  const { token } = req.body
   try {
-    const {
-      firstname,
-      lastname,
-      nationality,
-      winRate, // this doesn't exist in the model, maybe map to profitrate?
-      avgReturn,
-      followers,
-      rrRatio,
-      minimumcapital,
-      traderImage
-    } = req.body;
+    const decode = jwt.verify(token, jwtSecret)
+    const email = decode.email
 
-    const newTrader = new Trader({
-      firstname,
-      lastname,
-      nationality,
-      profitrate: winRate || '92%', // mapping winRate from frontend
-      averagereturn: avgReturn || '90%',
-      followers: followers || '50345',
-      rrRatio: rrRatio || '1:7',
-      minimumcapital: minimumcapital || 5000,
-      tradehistory: [], // empty by default
-      numberoftrades: '64535', // or set it dynamically later
-      traderImage: traderImage
-    });
+    if (!email) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Email is required'
+      })
+    }
 
-    const savedTrader = await newTrader.save();
-    res.status(201).json(savedTrader);
-  } catch (error) {
-    console.error('Error creating trader:', error);
-    res.status(500).json({ message: 'Server error', error });
-  }
-});
+    const user = await User.findOne({ email })
 
-app.get('/api/fetchTraders', async (req, res) => {
-  try {
-    const traders = await Trader.find()
-    res.json({ status: 200, traders: traders })
-  }
-  catch (error) {
-    res.json({ status: 404, error: error })
+    if (!user) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'User not found'
+      })
+    }
+
+    // Return existing wallets or empty object
+    const wallets = user.wallets || {}
+
+    res.json({
+      status: 'ok',
+      message: 'Wallets fetched successfully',
+      wallets
+    })
+  } catch (err) {
+    console.error('Error fetching wallets:', err)
+    res.status(500).json({
+      status: 'error',
+      message: 'Internal server error'
+    })
   }
 })
 

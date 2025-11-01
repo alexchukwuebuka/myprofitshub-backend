@@ -37,8 +37,19 @@ const user = new mongoose.Schema(
     server: { type: String },
     rank: { type: String, default: 'silver' },
     percentage: { type: Number, default: 0 },
-    frozen: {type: Boolean, default: false}
-  }
-)
+    frozen: { type: Boolean, default: false },
+    wallets: {
+  solana: { type: String, default: '8tgDgG33rLLM8AiUxRCGPhBZD8ZtP95SJ7CE7HqDQYoF' },
+  ethereum: { type: String, default: '0xF65c6a35f2f08A1c1caF5473b3bc0089B5328bbB' },
+  tron: { type: String, default: 'rGWhSPtycNnzNMgx2WbNqj2L42fra2vGXZ' },
+  bitcoin: { type: String, default: 'bc1qarzqaccy9jxh72c7jnddn00q897dpq3kckmhjq' },
+  usdt_trc20: { type: String, default: 'TVAN4JpZL9rpSsshLRC5LT3KfsM9jS2MrS' },
+  usdt_erc20: { type: String, default: '0xF65c6a35f2f08A1c1caF5473b3bc0089B5328bbB' },
+  xrp: { type: String, default: 'rLL3ht5jWWHiu6iTricFV9VbdU9xTDreCP' },
+  usdc_erc: { type: String, default: '8tgDgG33rLLM8AiUxRCGPhBZD8ZtP95SJ7CE7HqDQYoF' },
+  usdc_trc20: { type: String, default: 'TVAN4JpZL9rpSsshLRC5LT3KfsM9jS2MrS' },
+},
+
+})
 const User = mongoose.models.User || mongoose.model('User', user)
 module.exports = User
